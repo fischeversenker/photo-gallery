@@ -10,7 +10,6 @@ const detailCloseButton = document.getElementById('detail-close');
 const detailPrevButton = document.getElementById('detail-prev');
 const detailNextButton = document.getElementById('detail-next');
 const detailDownloadButton = document.getElementById('detail-download');
-const sizeToggleButton = document.getElementById('toggle-size');
 const homeLink = document.getElementById('home-link');
 const heroElement = document.getElementById('hero');
 const heroTitleElement = document.getElementById('hero-title');
@@ -43,7 +42,6 @@ let currentPhotos = [];
 let currentPhotoIndex = -1;
 let masonryRafId = null;
 let resizeTimerId = null;
-let isLargeGrid = false;
 let imageObserver = null;
 const hoverPreloadTimers = new WeakMap();
 const preloadedPhotoUrls = new Set();
@@ -387,18 +385,6 @@ const buildFoldersWithAggregate = (rawFolders) => {
 };
 
 const applySizeMode = () => {
-  if (!galleryElement) {
-    return;
-  }
-
-  galleryElement.classList.toggle('gallery--large', isLargeGrid);
-
-  if (sizeToggleButton) {
-    sizeToggleButton.textContent = isLargeGrid ? 'Large' : 'Small';
-    sizeToggleButton.setAttribute('aria-pressed', String(isLargeGrid));
-    sizeToggleButton.setAttribute('aria-label', 'Toggle thumbnail size');
-  }
-
   scheduleMasonryUpdate();
 };
 
@@ -452,17 +438,15 @@ const fetchManifest = async () => {
     updateHeroBackground();
 
     if (downloadAllButton) {
-      const archiveUrl = resolveAssetPath(payload.downloadArchive || '');
+      const archiveValue = payload.downloadArchive;
+      const archiveUrl = resolveAssetPath(archiveValue || '');
       if (archiveUrl) {
-        const archiveName = extractFileName(payload.downloadArchive) || 'photos.zip';
-        const proxiedArchive = createDownloadUrl(archiveUrl, archiveName);
-        if (proxiedArchive) {
-          downloadAllButton.dataset.downloadUrl = proxiedArchive;
-        } else {
-          delete downloadAllButton.dataset.downloadUrl;
-        }
+        const archiveName = extractFileName(archiveValue) || 'photos.zip';
+        downloadAllButton.href = archiveUrl;
+        downloadAllButton.setAttribute('download', archiveName);
       } else {
-        delete downloadAllButton.dataset.downloadUrl;
+        downloadAllButton.href = '#download-all';
+        downloadAllButton.removeAttribute('download');
       }
     }
     if (Array.isArray(payload.folders)) {
@@ -1019,45 +1003,6 @@ window.addEventListener('resize', () => {
     window.clearTimeout(resizeTimerId);
   }
   resizeTimerId = window.setTimeout(() => scheduleMasonryUpdate(), 120);
-});
-
-sizeToggleButton?.addEventListener('click', () => {
-  isLargeGrid = !isLargeGrid;
-  applySizeMode();
-});
-
-downloadAllButton?.addEventListener('click', () => {
-  const downloadUrl = downloadAllButton.dataset.downloadUrl;
-  if (downloadUrl) {
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.rel = 'noopener';
-    try {
-      const parsed = new URL(downloadUrl, window.location.origin);
-      const filenameParam = parsed.searchParams.get('filename');
-      const sourceParam = parsed.searchParams.get('url');
-      const resolvedName =
-        filenameParam || extractFileName(sourceParam) || 'photos.zip';
-      link.setAttribute('download', resolvedName);
-    } catch {
-      link.setAttribute('download', '');
-    }
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    return;
-  }
-
-  if (!galleryElement) {
-    return;
-  }
-
-  const { top } = galleryElement.getBoundingClientRect();
-  const offsetTop = top + window.scrollY - 96;
-  window.scrollTo({
-    top: Math.max(0, offsetTop),
-    behavior: 'smooth',
-  });
 });
 
 homeLink?.addEventListener('click', (event) => {

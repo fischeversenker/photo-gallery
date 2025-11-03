@@ -5,8 +5,7 @@ const LOGIN_TEMPLATE_PATH = new URL('./login.html', ROOT_DIR);
 const COOKIE_NAME = 'gallery_session';
 const encoder = new TextEncoder();
 
-// TODO: remove hardcoded password here as soon as Deno Deploy Env Vars are fixed
-const PASSWORD = Deno.env.get('GALLERY_PASSWORD') ?? 'yasnafelix2024';
+const PASSWORD = Deno.env.get('GALLERY_PASSWORD');
 if (!PASSWORD) {
   console.error('Environment variable GALLERY_PASSWORD is not set.');
   Deno.exit(1);
@@ -246,8 +245,13 @@ function isHttpUrl(value: string | null | undefined): boolean {
   return typeof value === 'string' && /^https?:\/\//i.test(value);
 }
 
-async function handleDownload(target: string, requestedFilename: string | null): Promise<Response> {
-  const filename = sanitizeDownloadFilename(requestedFilename || extractFileName(target));
+async function handleDownload(
+  target: string,
+  requestedFilename: string | null
+): Promise<Response> {
+  const filename = sanitizeDownloadFilename(
+    requestedFilename || extractFileName(target)
+  );
 
   try {
     if (isHttpUrl(target)) {

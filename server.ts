@@ -5,7 +5,8 @@ const LOGIN_TEMPLATE_PATH = new URL('./login.html', ROOT_DIR);
 const COOKIE_NAME = 'gallery_session';
 const encoder = new TextEncoder();
 
-const PASSWORD = Deno.env.get('GALLERY_PASSWORD');
+// TODO: remove hardcoded password here as soon as Deno Deploy Env Vars are fixed
+const PASSWORD = Deno.env.get('GALLERY_PASSWORD') ?? 'yasnafelix2024';
 if (!PASSWORD) {
   console.error('Environment variable GALLERY_PASSWORD is not set.');
   Deno.exit(1);
@@ -13,18 +14,24 @@ if (!PASSWORD) {
 
 const SESSION_SECRET =
   Deno.env.get('SESSION_SECRET') ??
-  (await crypto.subtle.digest(
-    'SHA-256',
-    encoder.encode(PASSWORD + 'wedding-gallery-secret')
-  ).then((buffer) => {
-    const bytes = new Uint8Array(buffer);
-    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-  }));
+  (await crypto.subtle
+    .digest('SHA-256', encoder.encode(PASSWORD + 'wedding-gallery-secret'))
+    .then((buffer) => {
+      const bytes = new Uint8Array(buffer);
+      return Array.from(bytes, (byte) =>
+        byte.toString(16).padStart(2, '0')
+      ).join('');
+    }));
 
 const EXPECTED_TOKEN = await computeToken(PASSWORD);
 const LOGIN_TEMPLATE = await Deno.readTextFile(LOGIN_TEMPLATE_PATH);
 
-const PUBLIC_PATHS = new Set<string>(['/login', '/login.html', '/styles.css', '/favicon.ico']);
+const PUBLIC_PATHS = new Set<string>([
+  '/login',
+  '/login.html',
+  '/styles.css',
+  '/favicon.ico',
+]);
 
 Deno.serve({ port: Number(Deno.env.get('PORT') ?? '8000') }, async (req) => {
   const url = new URL(req.url);
@@ -37,7 +44,10 @@ Deno.serve({ port: Number(Deno.env.get('PORT') ?? '8000') }, async (req) => {
     if (authorized) {
       return redirect('/');
     }
-    const errorMessage = url.searchParams.get('error') === '1' ? 'Incorrect password. Please try again.' : '&nbsp;';
+    const errorMessage =
+      url.searchParams.get('error') === '1'
+        ? 'Incorrect password. Please try again.'
+        : '&nbsp;';
     return renderLogin(errorMessage);
   }
 
@@ -58,7 +68,9 @@ Deno.serve({ port: Number(Deno.env.get('PORT') ?? '8000') }, async (req) => {
     });
     headers.append(
       'Set-Cookie',
-      `${COOKIE_NAME}=${EXPECTED_TOKEN}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${60 * 60 * 8}`
+      `${COOKIE_NAME}=${EXPECTED_TOKEN}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${
+        60 * 60 * 8
+      }`
     );
     return new Response(null, { status: 303, headers });
   }

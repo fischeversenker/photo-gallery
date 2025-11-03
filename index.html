@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wedding Photo Gallery</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section id="hero" class="hero" aria-labelledby="hero-title">
+        <div class="hero__inner">
+          <p id="hero-eyebrow" class="hero__eyebrow">Our Wedding</p>
+          <h1 id="hero-title" class="hero__title">Yasna and Felix</h1>
+          <p id="hero-subtitle" class="hero__subtitle">12 & 13 September 2024</p>
+        </div>
+      </section>
+
+      <div class="page__cta">
+        <button
+          type="button"
+          id="download-all"
+          class="cta-button"
+          aria-label="Download all photos"
+        >
+          Download All Photos
+        </button>
+      </div>
+
+      <section class="page__content">
+        <div
+          id="gallery"
+          class="gallery"
+          aria-live="polite"
+          aria-busy="true"
+        ></div>
+        <p id="gallery-empty" class="gallery-empty hidden">No photos yet.</p>
+
+        <section
+          id="detail-view"
+          class="detail-view hidden"
+          aria-hidden="true"
+          aria-labelledby="detail-title"
+          tabindex="-1"
+        >
+          <button
+            type="button"
+            id="detail-close"
+            class="detail-view__close"
+            aria-label="Close overlay"
+          >
+            ×
+          </button>
+
+          <a
+            id="detail-download"
+            class="detail-view__download"
+            aria-label="Download photo"
+            download
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              role="presentation"
+              focusable="false"
+            >
+              <path
+                d="M12 3a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 0 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L11 12.586V4a1 1 0 0 1 1-1Zm-7 14a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"
+                fill="currentColor"
+              />
+            </svg>
+          </a>
+
+          <button
+            type="button"
+            id="detail-prev"
+            class="detail-view__nav-button detail-view__nav-button--prev"
+            aria-label="Show previous photo"
+          >
+            ←
+          </button>
+
+          <figure class="detail-view__figure">
+            <img id="detail-image" class="detail-view__image" alt="" />
+            <figcaption
+              id="detail-title"
+              class="detail-view__caption"
+            ></figcaption>
+            <p id="detail-count" class="detail-view__count"></p>
+          </figure>
+
+          <button
+            type="button"
+            id="detail-next"
+            class="detail-view__nav-button detail-view__nav-button--next"
+            aria-label="Show next photo"
+          >
+            →
+          </button>
+        </section>
+      </section>
+    </main>
+
+    <template id="gallery-item-template">
+      <figure class="gallery-item">
+        <div class="gallery-item__media">
+          <img class="gallery-item__image" loading="lazy" alt="" />
+          <div class="gallery-item__overlay" aria-hidden="true">
+            <p class="gallery-item__title"></p>
+          </div>
+          <a
+            class="gallery-item__download"
+            download
+            aria-label="Download photo"
+          >
+            <span class="gallery-item__download-icon" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                role="presentation"
+                focusable="false"
+              >
+                <path
+                  d="M12 3a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 0 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L11 12.586V4a1 1 0 0 1 1-1Zm-7 14a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+          </a>
+        </div>
+      </figure>
+    </template>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

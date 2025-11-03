@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/gallery.schema.json",
+  "title": "Gallery Configuration",
+  "type": "object",
+  "description": "Root gallery definition consisting of configuration metadata and an ordered list of folders.",
+  "additionalProperties": false,
+  "required": [
+    "folders"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional reference to the JSON schema that validates this document."
+    },
+    "heroEyebrow": {
+      "type": "string",
+      "description": "Optional eyebrow text displayed above the hero title."
+    },
+    "heroTitle": {
+      "type": "string",
+      "description": "Optional heading for the hero section."
+    },
+    "heroSubtitle": {
+      "type": "string",
+      "description": "Optional subtitle or eyebrow copy for the hero section."
+    },
+    "heroImage": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional background image for the hero."
+    },
+    "downloadArchive": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional URL or path to a ZIP archive containing all photos."
+    },
+    "folders": {
+      "type": "array",
+      "description": "Ordered list of folders visible in the gallery.",
+      "items": {
+        "$ref": "#/definitions/folder"
+      }
+    }
+  },
+  "definitions": {
+    "folder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "photos"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique identifier for the folder."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Display name for the folder."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional descriptive text for the folder.",
+          "default": ""
+        },
+        "photos": {
+          "type": "array",
+          "description": "Ordered list of photos contained in the folder.",
+          "items": {
+            "$ref": "#/definitions/photo"
+          }
+        }
+      }
+    },
+    "photo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique identifier for the photo."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Display title of the photo."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional descriptive text for the photo.",
+          "default": ""
+        },
+        "thumbnail": {
+          "type": "string",
+          "description": "URL or path pointing to a thumbnail rendition of the photo.",
+          "format": "uri-reference"
+        },
+        "full": {
+          "type": "string",
+          "description": "URL or path pointing to the full-resolution variant of the photo.",
+          "format": "uri-reference"
+        },
+        "src": {
+          "type": "string",
+          "format": "uri-reference",
+          "description": "Deprecated alias for `full`; accepted for backwards compatibility."
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Pixel width of the full-resolution photo."
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Pixel height of the full-resolution photo."
+        },
+        "thumbnailWidth": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Pixel width of the thumbnail rendition."
+        },
+        "thumbnailHeight": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Pixel height of the thumbnail rendition."
+        },
+        "aspectRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Thumbnail aspect ratio (height divided by width)."
+        },
+        "orientation": {
+          "type": "string",
+          "enum": [
+            "landscape",
+            "portrait",
+            "square"
+          ],
+          "description": "Orientation derived from the aspect ratio."
+        }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "required": [
+                "thumbnail"
+              ]
+            },
+            {
+              "required": [
+                "full"
+              ]
+            },
+            {
+              "required": [
+                "src"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

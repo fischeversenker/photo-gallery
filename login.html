@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wedding Gallery Login</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="login-page">
+      <section class="login-card" aria-labelledby="login-title">
+        <h1 id="login-title" class="login-card__title">Private Gallery</h1>
+        <p class="login-card__message">
+          Enter the password we shared with you to access the wedding photos.
+        </p>
+        <form class="login-form" method="POST" action="/login">
+          <label class="login-form__label" for="password">Password</label>
+          <div class="login-form__controls">
+            <input
+              class="login-form__input"
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+            <button class="login-form__submit" type="submit">Enter Gallery</button>
+          </div>
+          <p class="login-form__error" aria-live="polite">{{ERROR_MESSAGE}}</p>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

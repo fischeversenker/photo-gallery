@@ -870,6 +870,16 @@ function showGrid({ updateHistory = true, replaceHistory = false } = {}) {
   galleryElement?.removeAttribute('aria-hidden');
   document.title = basePageTitle;
 
+  if (detailImage) {
+    detailImage.src = '';
+    detailImage.removeAttribute('src');
+    detailImage.alt = '';
+  }
+  if (detailDownloadButton) {
+    detailDownloadButton.href = '#';
+    detailDownloadButton.removeAttribute('download');
+  }
+
   if (updateHistory) {
     const folder = folders[currentFolderIndex];
     const folderId = folder ? folder.id : AGGREGATE_FOLDER_ID;

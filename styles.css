@@ -98,7 +98,7 @@ a {
       rgba(14, 14, 16, 0.55),
       rgba(14, 14, 16, 0.8)
     ),
-    var(--hero-image);
+    var(--hero-image, none);
   background-size: cover;
   background-position: center;
 }

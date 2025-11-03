@@ -101,6 +101,15 @@ Deno.serve({ port: Number(Deno.env.get('PORT') ?? '8000') }, async (req) => {
     return renderLogin('&nbsp;');
   }
 
+  if (pathname === '/download' && req.method === 'GET') {
+    const target = url.searchParams.get('url');
+    if (!target) {
+      return new Response('Missing url parameter', { status: 400 });
+    }
+    const filename = url.searchParams.get('filename');
+    return handleDownload(target, filename);
+  }
+
   if (
     pathname === '/styles.css' ||
     pathname === '/app.js' ||
@@ -213,6 +222,69 @@ function redirect(location: string): Response {
 
 function notFound(): Response {
   return new Response('Not Found', { status: 404 });
+}
+
+function sanitizeDownloadFilename(value: string | null | undefined): string {
+  const fallback = 'download';
+  if (!value) {
+    return fallback;
+  }
+  const cleaned = value.replace(/[\\/]/g, '_').trim();
+  return cleaned || fallback;
+}
+
+function extractFileName(value: string | null | undefined): string {
+  if (!value) {
+    return '';
+  }
+  const base = value.split(/[?#]/)[0];
+  const segments = base.split(/[\\/]/);
+  return segments.pop() || '';
+}
+
+function isHttpUrl(value: string | null | undefined): boolean {
+  return typeof value === 'string' && /^https?:\/\//i.test(value);
+}
+
+async function handleDownload(target: string, requestedFilename: string | null): Promise<Response> {
+  const filename = sanitizeDownloadFilename(requestedFilename || extractFileName(target));
+
+  try {
+    if (isHttpUrl(target)) {
+      const remoteResponse = await fetch(target);
+      if (!remoteResponse.ok) {
+        return new Response('Failed to download resource', { status: 502 });
+      }
+      const buffer = await remoteResponse.arrayBuffer();
+      const headers = new Headers();
+      const contentType =
+        remoteResponse.headers.get('content-type') ?? getContentType(target);
+      if (contentType) {
+        headers.set('content-type', contentType);
+      }
+      headers.set('content-length', String(buffer.byteLength));
+      headers.set('content-disposition', `attachment; filename="${filename}"`);
+      return new Response(buffer, { status: 200, headers });
+    }
+
+    const normalizedPath = target.replace(/^\/+/, '');
+    const fileUrl = resolvePath(normalizedPath);
+    const data = await Deno.readFile(fileUrl);
+    const headers = new Headers();
+    const contentType = getContentType(fileUrl.pathname);
+    if (contentType) {
+      headers.set('content-type', contentType);
+    }
+    headers.set('content-length', String(data.byteLength));
+    headers.set('content-disposition', `attachment; filename="${filename}"`);
+    return new Response(data, { status: 200, headers });
+  } catch (error) {
+    console.error(error);
+    if (error instanceof Deno.errors.NotFound) {
+      return notFound();
+    }
+    return new Response('Failed to download resource', { status: 500 });
+  }
 }
 
 function getContentType(pathname: string): string | undefined {

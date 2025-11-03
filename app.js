@@ -334,6 +334,29 @@ const normalizeDownloadName = (photo) => {
   return base.length ? `${base}.jpg` : `${fallbackName}.jpg`;
 };
 
+const extractFileName = (value) => {
+  const cleaned = safeText(value, '');
+  if (!cleaned) {
+    return '';
+  }
+  const base = cleaned.split(/[?#]/)[0];
+  const segments = base.split(/[\\/]/);
+  return segments.pop() || '';
+};
+
+const createDownloadUrl = (source, filename) => {
+  const cleanedSource = safeText(source, '');
+  if (!cleanedSource) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  params.set('url', cleanedSource);
+  if (filename) {
+    params.set('filename', filename);
+  }
+  return `/download?${params.toString()}`;
+};
+
 const buildFoldersWithAggregate = (rawFolders) => {
   const aggregatePhotos = [];
 
@@ -431,7 +454,13 @@ const fetchManifest = async () => {
     if (downloadAllButton) {
       const archiveUrl = resolveAssetPath(payload.downloadArchive || '');
       if (archiveUrl) {
-        downloadAllButton.dataset.downloadUrl = archiveUrl;
+        const archiveName = extractFileName(payload.downloadArchive) || 'photos.zip';
+        const proxiedArchive = createDownloadUrl(archiveUrl, archiveName);
+        if (proxiedArchive) {
+          downloadAllButton.dataset.downloadUrl = proxiedArchive;
+        } else {
+          delete downloadAllButton.dataset.downloadUrl;
+        }
       } else {
         delete downloadAllButton.dataset.downloadUrl;
       }
@@ -656,8 +685,15 @@ const renderGallery = (items) => {
     }
 
     if (downloadLink && fullSrc) {
-      downloadLink.href = fullSrc;
-      downloadLink.setAttribute('download', normalizeDownloadName(item));
+      const downloadName = normalizeDownloadName(item);
+      const proxiedHref = createDownloadUrl(fullSrc, downloadName);
+      if (proxiedHref) {
+        downloadLink.href = proxiedHref;
+        downloadLink.setAttribute('download', downloadName);
+      } else {
+        downloadLink.href = fullSrc;
+        downloadLink.removeAttribute('download');
+      }
       downloadLink.title = 'Download photo';
     }
 
@@ -784,8 +820,15 @@ function openDetail(folderIndex, photoIndex, { updateHistory = true, replaceHist
   ensurePhotoPreloaded(photo);
 
   if (detailDownloadButton) {
-    detailDownloadButton.href = photo.full;
-    detailDownloadButton.setAttribute('download', normalizeDownloadName(photo));
+    const downloadName = normalizeDownloadName(photo);
+    const proxiedHref = createDownloadUrl(photo.full, downloadName);
+    if (proxiedHref) {
+      detailDownloadButton.href = proxiedHref;
+      detailDownloadButton.setAttribute('download', downloadName);
+    } else {
+      detailDownloadButton.href = photo.full;
+      detailDownloadButton.removeAttribute('download');
+    }
   }
 
   if (detailPrevButton && detailNextButton) {
@@ -979,7 +1022,16 @@ downloadAllButton?.addEventListener('click', () => {
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.rel = 'noopener';
-    link.setAttribute('download', '');
+    try {
+      const parsed = new URL(downloadUrl, window.location.origin);
+      const filenameParam = parsed.searchParams.get('filename');
+      const sourceParam = parsed.searchParams.get('url');
+      const resolvedName =
+        filenameParam || extractFileName(sourceParam) || 'photos.zip';
+      link.setAttribute('download', resolvedName);
+    } catch {
+      link.setAttribute('download', '');
+    }
     document.body.appendChild(link);
     link.click();
     link.remove();

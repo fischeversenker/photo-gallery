@@ -1,37 +1,37 @@
-const galleryElement = document.getElementById('gallery');
-const emptyStateElement = document.getElementById('gallery-empty');
-const template = document.getElementById('gallery-item-template');
-const folderControls = document.getElementById('folder-controls');
-const detailView = document.getElementById('detail-view');
-const detailImage = document.getElementById('detail-image');
-const detailTitle = document.getElementById('detail-title');
-const detailCount = document.getElementById('detail-count');
-const detailCloseButton = document.getElementById('detail-close');
-const detailPrevButton = document.getElementById('detail-prev');
-const detailNextButton = document.getElementById('detail-next');
-const detailDownloadButton = document.getElementById('detail-download');
-const homeLink = document.getElementById('home-link');
-const heroElement = document.getElementById('hero');
-const heroTitleElement = document.getElementById('hero-title');
-const heroSubtitleElement = document.getElementById('hero-subtitle');
-const heroEyebrowElement = document.getElementById('hero-eyebrow');
-const downloadAllButton = document.getElementById('download-all');
-const bodyElement = document.body || document.querySelector('body');
-const pageElement = document.querySelector('.page');
+const galleryElement = document.getElementById("gallery");
+const emptyStateElement = document.getElementById("gallery-empty");
+const template = document.getElementById("gallery-item-template");
+const folderControls = document.getElementById("folder-controls");
+const detailView = document.getElementById("detail-view");
+const detailImage = document.getElementById("detail-image");
+const detailTitle = document.getElementById("detail-title");
+const detailCount = document.getElementById("detail-count");
+const detailCloseButton = document.getElementById("detail-close");
+const detailPrevButton = document.getElementById("detail-prev");
+const detailNextButton = document.getElementById("detail-next");
+const detailDownloadButton = document.getElementById("detail-download");
+const homeLink = document.getElementById("home-link");
+const heroElement = document.getElementById("hero");
+const heroTitleElement = document.getElementById("hero-title");
+const heroSubtitleElement = document.getElementById("hero-subtitle");
+const heroEyebrowElement = document.getElementById("hero-eyebrow");
+const downloadAllButton = document.getElementById("download-all");
+const bodyElement = document.body || document.querySelector("body");
+const pageElement = document.querySelector(".page");
 
-const AGGREGATE_FOLDER_ID = 'alle';
-const AGGREGATE_FOLDER_NAME = 'All Photos';
+const AGGREGATE_FOLDER_ID = "alle";
+const AGGREGATE_FOLDER_NAME = "All Photos";
 
 const basePageTitle = document.title;
-const initialHeroEyebrow = heroEyebrowElement?.textContent ?? '';
-const initialHeroTitle = heroTitleElement?.textContent ?? '';
-const initialHeroSubtitle = heroSubtitleElement?.textContent ?? '';
+const initialHeroEyebrow = heroEyebrowElement?.textContent ?? "";
+const initialHeroTitle = heroTitleElement?.textContent ?? "";
+const initialHeroSubtitle = heroSubtitleElement?.textContent ?? "";
 
 let heroConfig = {
   eyebrow: null,
   title: null,
   subtitle: null,
-  image: '',
+  image: "",
 };
 
 let baseFolders = [];
@@ -49,8 +49,8 @@ const preloadedImageElements = new Map();
 
 const layoutPattern = [{}];
 
-const GALLERY_ITEM_SELECTOR = '.gallery-item';
-const DOWNLOAD_LINK_SELECTOR = '.gallery-item__download';
+const GALLERY_ITEM_SELECTOR = ".gallery-item";
+const DOWNLOAD_LINK_SELECTOR = ".gallery-item__download";
 const HOVER_PRELOAD_DELAY = 350;
 
 const ensurePhotoPreloaded = (photo) => {
@@ -61,46 +61,46 @@ const ensurePhotoPreloaded = (photo) => {
   preloadedPhotoUrls.add(photo.full);
   if (!preloadedImageElements.has(photo.full)) {
     const image = new Image();
-    image.decoding = 'async';
-    image.loading = 'eager';
+    image.decoding = "async";
+    image.loading = "eager";
     image.src = photo.full;
     preloadedImageElements.set(photo.full, image);
   }
 };
 
 const API_BASE_URL =
-  typeof window !== 'undefined' && window.API_BASE_URL
+  typeof window !== "undefined" && window.API_BASE_URL
     ? String(window.API_BASE_URL).trim()
-    : '';
+    : "";
 const NORMALIZED_API_BASE = API_BASE_URL
-  ? API_BASE_URL.replace(/\/?$/, '/')
-  : '';
+  ? API_BASE_URL.replace(/\/?$/, "/")
+  : "";
 
 const isAbsoluteUrl = (value) =>
-  /^([a-z][a-z\d+.-]*:)?\/\//i.test(value || '') ||
-  (value || '').startsWith('data:');
+  /^([a-z][a-z\d+.-]*:)?\/\//i.test(value || "") ||
+  (value || "").startsWith("data:");
 
 const resolveAssetPath = (value) => {
   const cleaned = safeText(value);
   if (!cleaned) {
-    return '';
+    return "";
   }
-  if (isAbsoluteUrl(cleaned) || cleaned.startsWith('/')) {
+  if (isAbsoluteUrl(cleaned) || cleaned.startsWith("/")) {
     return cleaned;
   }
-  const trimmed = cleaned.replace(/^\.?\/*/, '');
+  const trimmed = cleaned.replace(/^\.?\/*/, "");
   if (NORMALIZED_API_BASE) {
     return NORMALIZED_API_BASE + trimmed;
   }
-  return `/${trimmed.startsWith('assets/') ? trimmed : `assets/${trimmed}`}`;
+  return `/${trimmed.startsWith("assets/") ? trimmed : `assets/${trimmed}`}`;
 };
 
-const supportsNativeLazyLoading = 'loading' in HTMLImageElement.prototype;
+const supportsNativeLazyLoading = "loading" in HTMLImageElement.prototype;
 const PLACEHOLDER_IMAGE =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==";
 
 const escapeForSingleQuotes = (value) =>
-  String(value || '').replace(/'/g, "\\'");
+  String(value || "").replace(/'/g, "\\'");
 
 const findFirstPhotoInFolder = (folder) => {
   if (!folder || !Array.isArray(folder.photos)) {
@@ -142,15 +142,15 @@ const resolveHeroPhoto = (folderIndex = currentFolderIndex) => {
 const applyHeroContent = () => {
   if (heroEyebrowElement) {
     const eyebrow = heroConfig.eyebrow ?? initialHeroEyebrow;
-    heroEyebrowElement.textContent = eyebrow || '';
+    heroEyebrowElement.textContent = eyebrow || "";
   }
   if (heroTitleElement) {
     const title = heroConfig.title ?? initialHeroTitle;
-    heroTitleElement.textContent = title || '';
+    heroTitleElement.textContent = title || "";
   }
   if (heroSubtitleElement) {
     const subtitle = heroConfig.subtitle ?? initialHeroSubtitle;
-    heroSubtitleElement.textContent = subtitle || '';
+    heroSubtitleElement.textContent = subtitle || "";
   }
 };
 
@@ -161,34 +161,34 @@ const updateHeroBackground = (folderIndex = currentFolderIndex) => {
 
   if (heroConfig.image) {
     heroElement.style.setProperty(
-      '--hero-image',
-      `url('${escapeForSingleQuotes(heroConfig.image)}')`
+      "--hero-image",
+      `url('${escapeForSingleQuotes(heroConfig.image)}')`,
     );
     return;
   }
 
   const candidate = resolveHeroPhoto(folderIndex);
   if (!candidate) {
-    heroElement.style.removeProperty('--hero-image');
+    heroElement.style.removeProperty("--hero-image");
     return;
   }
 
   const source = candidate.full || candidate.thumbnail;
   if (!source) {
-    heroElement.style.removeProperty('--hero-image');
+    heroElement.style.removeProperty("--hero-image");
     return;
   }
 
   heroElement.style.setProperty(
-    '--hero-image',
-    `url('${escapeForSingleQuotes(source)}')`
+    "--hero-image",
+    `url('${escapeForSingleQuotes(source)}')`,
   );
 };
 
 const ensureImageObserver = () => {
   if (
-    typeof window === 'undefined' ||
-    typeof window.IntersectionObserver !== 'function'
+    typeof window === "undefined" ||
+    typeof window.IntersectionObserver !== "function"
   ) {
     return null;
   }
@@ -214,7 +214,7 @@ const ensureImageObserver = () => {
         observer.unobserve(img);
       });
     },
-    { rootMargin: '300px 0px' }
+    { rootMargin: "300px 0px" },
   );
 
   return imageObserver;
@@ -226,14 +226,14 @@ const prepareImageForLazyLoading = (image, targetSrc) => {
   }
 
   if (!targetSrc) {
-    image.removeAttribute('loading');
+    image.removeAttribute("loading");
     delete image.dataset.pendingSrc;
-    image.src = '';
+    image.src = "";
     return;
   }
 
   if (supportsNativeLazyLoading) {
-    image.loading = 'lazy';
+    image.loading = "lazy";
     image.src = targetSrc;
     return;
   }
@@ -249,8 +249,10 @@ const prepareImageForLazyLoading = (image, targetSrc) => {
   }
 };
 
-const safeText = (value, fallback = '') =>
-  typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
+const safeText = (value, fallback = "") =>
+  typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : fallback;
 
 const toPositiveNumber = (value) => {
   const number = Number(value);
@@ -259,98 +261,102 @@ const toPositiveNumber = (value) => {
 
 const deriveOrientation = (rawOrientation, width, height) => {
   const normalized = safeText(rawOrientation).toLowerCase();
-  if (normalized === 'landscape' || normalized === 'portrait' || normalized === 'square') {
+  if (
+    normalized === "landscape" ||
+    normalized === "portrait" ||
+    normalized === "square"
+  ) {
     return normalized;
   }
 
   if (width && height) {
     if (Math.abs(width - height) <= 1) {
-      return 'square';
+      return "square";
     }
-    return height > width ? 'portrait' : 'landscape';
+    return height > width ? "portrait" : "landscape";
   }
 
-  return '';
+  return "";
 };
 
 const toggleBodyLock = (shouldLock) => {
   if (!bodyElement) {
     return;
   }
-  bodyElement.classList.toggle('is-locked', shouldLock);
+  bodyElement.classList.toggle("is-locked", shouldLock);
 };
 
 const normalizeFolderId = (value) => {
-  const cleaned = safeText(value, '');
+  const cleaned = safeText(value, "");
   return cleaned || AGGREGATE_FOLDER_ID;
 };
 
 const buildPathFromState = ({ photoId }) => {
-  const normalizedPhoto = safeText(photoId, '');
+  const normalizedPhoto = safeText(photoId, "");
   if (!normalizedPhoto) {
-    return '/';
+    return "/";
   }
   return `/${encodeURIComponent(normalizedPhoto)}`;
 };
 
 const parseLocationState = () => {
   const segments = window.location.pathname
-    .split('/')
+    .split("/")
     .map((segment) => segment.trim())
     .filter(Boolean)
     .map((segment) => decodeURIComponent(segment));
 
-  const photoId = segments[0] || '';
+  const photoId = segments[0] || "";
   return {
     folderId: AGGREGATE_FOLDER_ID,
-    photoId: safeText(photoId, ''),
+    photoId: safeText(photoId, ""),
   };
 };
 
-const updateHistoryState = ({ folderId, photoId = '', replace = false }) => {
+const updateHistoryState = ({ folderId, photoId = "", replace = false }) => {
   const state = {
     folderId: normalizeFolderId(folderId),
-    photoId: safeText(photoId, ''),
+    photoId: safeText(photoId, ""),
   };
   const path = buildPathFromState(state);
   if (replace) {
-    history.replaceState(state, '', path);
+    history.replaceState(state, "", path);
     return;
   }
-  history.pushState(state, '', path);
+  history.pushState(state, "", path);
 };
 
 let isHandlingPopState = false;
 
 const normalizeDownloadName = (photo) => {
-  const fallbackName = safeText(photo?.id, 'photo');
+  const fallbackName = safeText(photo?.id, "photo");
   const raw = safeText(photo?.title, fallbackName);
   const base = raw
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   return base.length ? `${base}.jpg` : `${fallbackName}.jpg`;
 };
 
 const extractFileName = (value) => {
-  const cleaned = safeText(value, '');
+  const cleaned = safeText(value, "");
   if (!cleaned) {
-    return '';
+    return "";
   }
   const base = cleaned.split(/[?#]/)[0];
   const segments = base.split(/[\\/]/);
-  return segments.pop() || '';
+  return segments.pop() || "";
 };
 
 const createDownloadUrl = (source, filename) => {
-  const cleanedSource = safeText(source, '');
+  const cleanedSource = safeText(source, "");
   if (!cleanedSource) {
-    return '';
+    return "";
   }
   const params = new URLSearchParams();
-  params.set('url', cleanedSource);
+  params.set("url", cleanedSource);
   if (filename) {
-    params.set('filename', filename);
+    params.set("filename", filename);
   }
   return `/download?${params.toString()}`;
 };
@@ -377,7 +383,7 @@ const buildFoldersWithAggregate = (rawFolders) => {
     {
       id: AGGREGATE_FOLDER_ID,
       name: AGGREGATE_FOLDER_NAME,
-      description: 'All images from every folder.',
+      description: "All images from every folder.",
       photos: aggregatePhotos,
     },
     ...clonedFolders,
@@ -389,18 +395,18 @@ const applySizeMode = () => {
 };
 
 const toggleLoading = (isLoading) => {
-  galleryElement.classList.toggle('is-loading', isLoading);
-  galleryElement.setAttribute('aria-busy', String(isLoading));
+  galleryElement.classList.toggle("is-loading", isLoading);
+  galleryElement.setAttribute("aria-busy", String(isLoading));
 };
 
 const fetchManifest = async () => {
   const manifestUrl = NORMALIZED_API_BASE
     ? `${NORMALIZED_API_BASE}gallery.json`
-    : '/assets/gallery.json';
-  const response = await fetch(manifestUrl, { cache: 'no-store' });
+    : "/assets/gallery.json";
+  const response = await fetch(manifestUrl, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(
-      `assets/gallery.json could not be loaded (${response.status})`
+      `assets/gallery.json could not be loaded (${response.status})`,
     );
   }
 
@@ -410,55 +416,55 @@ const fetchManifest = async () => {
     eyebrow: null,
     title: null,
     subtitle: null,
-    image: '',
+    image: "",
   };
   applyHeroContent();
-  heroElement?.style.removeProperty('--hero-image');
+  heroElement?.style.removeProperty("--hero-image");
 
   let foldersPayload = payload;
 
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    const heroImageSource = safeText(payload.heroImage, '');
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const heroImageSource = safeText(payload.heroImage, "");
     heroConfig = {
-      eyebrow: Object.prototype.hasOwnProperty.call(payload, 'heroEyebrow')
-        ? safeText(payload.heroEyebrow, '')
+      eyebrow: Object.prototype.hasOwnProperty.call(payload, "heroEyebrow")
+        ? safeText(payload.heroEyebrow, "")
         : null,
-      title: Object.prototype.hasOwnProperty.call(payload, 'heroTitle')
-        ? safeText(payload.heroTitle, '')
+      title: Object.prototype.hasOwnProperty.call(payload, "heroTitle")
+        ? safeText(payload.heroTitle, "")
         : null,
-      subtitle: Object.prototype.hasOwnProperty.call(payload, 'heroSubtitle')
-        ? safeText(payload.heroSubtitle, '')
+      subtitle: Object.prototype.hasOwnProperty.call(payload, "heroSubtitle")
+        ? safeText(payload.heroSubtitle, "")
         : null,
-      image: heroImageSource ? resolveAssetPath(heroImageSource) : '',
+      image: heroImageSource ? resolveAssetPath(heroImageSource) : "",
     };
     applyHeroContent();
     if (!heroConfig.image) {
-      heroElement?.style.removeProperty('--hero-image');
+      heroElement?.style.removeProperty("--hero-image");
     }
     updateHeroBackground();
 
     if (downloadAllButton) {
       const archiveValue = payload.downloadArchive;
-      const archiveUrl = resolveAssetPath(archiveValue || '');
+      const archiveUrl = resolveAssetPath(archiveValue || "");
       if (archiveUrl) {
-        const archiveName = extractFileName(archiveValue) || 'photos.zip';
+        const archiveName = extractFileName(archiveValue) || "photos.zip";
         downloadAllButton.href = archiveUrl;
-        downloadAllButton.setAttribute('download', archiveName);
+        downloadAllButton.setAttribute("download", archiveName);
       } else {
-        downloadAllButton.href = '#download-all';
-        downloadAllButton.removeAttribute('download');
+        downloadAllButton.href = "#download-all";
+        downloadAllButton.removeAttribute("download");
       }
     }
     if (Array.isArray(payload.folders)) {
       foldersPayload = payload.folders;
     } else {
-      throw new Error('The gallery configuration must include a folders array');
+      throw new Error("The gallery configuration must include a folders array");
     }
   }
 
   if (!Array.isArray(foldersPayload)) {
     throw new Error(
-      'The gallery configuration must be an array or contain a folders array'
+      "The gallery configuration must be an array or contain a folders array",
     );
   }
 
@@ -484,15 +490,17 @@ const fetchManifest = async () => {
         const orientation = deriveOrientation(
           item.orientation,
           thumbnailWidth || width,
-          thumbnailHeight || height
+          thumbnailHeight || height,
         );
 
         return {
           id: safeText(item.id, `photo-${folderIndex}-${photoIndex}`),
-          title: safeText(item.title, 'Untitled photo'),
-          description: safeText(item.description, ''),
-          thumbnail: resolveAssetPath(item.thumbnail || item.full || item.src || ''),
-          full: resolveAssetPath(item.full || item.src || item.thumbnail || ''),
+          title: safeText(item.title, "Untitled photo"),
+          description: safeText(item.description, ""),
+          thumbnail: resolveAssetPath(
+            item.thumbnail || item.full || item.src || "",
+          ),
+          full: resolveAssetPath(item.full || item.src || item.thumbnail || ""),
           width,
           height,
           thumbnailWidth,
@@ -506,14 +514,14 @@ const fetchManifest = async () => {
     return {
       id: safeText(folder.id, `folder-${folderIndex}`),
       name: safeText(folder.name || folder.title, `Folder ${folderIndex + 1}`),
-      description: safeText(folder.description, ''),
+      description: safeText(folder.description, ""),
       photos: normalizedPhotos,
     };
   });
 };
 
 const clearGallery = () => {
-  galleryElement.innerHTML = '';
+  galleryElement.innerHTML = "";
 };
 
 const getLayoutForIndex = (index) =>
@@ -522,11 +530,11 @@ const getLayoutForIndex = (index) =>
 const applyLayoutToFigure = (figure, index) => {
   const layout = getLayoutForIndex(index);
   const emphasisClass =
-    layout.emphasis === 'hero'
-      ? 'gallery-item--hero'
-      : layout.emphasis === 'highlight'
-      ? 'gallery-item--highlight'
-      : null;
+    layout.emphasis === "hero"
+      ? "gallery-item--hero"
+      : layout.emphasis === "highlight"
+        ? "gallery-item--highlight"
+        : null;
 
   if (layout.columns && layout.columns > 1) {
     figure.classList.add(`gallery-item--span-${layout.columns}`);
@@ -543,14 +551,15 @@ const readMasonryMetrics = () => {
   }
 
   const style = window.getComputedStyle(galleryElement);
-  const columns = parseInt(style.getPropertyValue('--columns'), 10) || 1;
+  const columns = parseInt(style.getPropertyValue("--columns"), 10) || 1;
   const rowHeight =
-    parseFloat(style.getPropertyValue('--masonry-row-height')) || 10;
+    parseFloat(style.getPropertyValue("--masonry-row-height")) || 10;
   const rowGap =
-    parseFloat(style.rowGap || style.gridRowGap || style.gap || '0') || 0;
+    parseFloat(style.rowGap || style.gridRowGap || style.gap || "0") || 0;
   const columnGap =
-    parseFloat(style.columnGap || style.gridColumnGap || style.gap || '0') || 0;
-  const containerWidth = galleryElement.clientWidth || galleryElement.offsetWidth;
+    parseFloat(style.columnGap || style.gridColumnGap || style.gap || "0") || 0;
+  const containerWidth =
+    galleryElement.clientWidth || galleryElement.offsetWidth;
   const usableWidth =
     columns > 0 ? Math.max(0, containerWidth - columnGap * (columns - 1)) : 0;
   const columnWidth = columns > 0 ? usableWidth / columns : usableWidth;
@@ -569,18 +578,18 @@ const updateMasonrySpans = () => {
     return;
   }
 
-  const items = galleryElement.querySelectorAll('.gallery-item');
+  const items = galleryElement.querySelectorAll(".gallery-item");
   items.forEach((item) => {
     const aspect = Number(item.dataset.aspectRatio);
     if (!Number.isFinite(aspect) || aspect <= 0) {
-      item.style.removeProperty('grid-row-end');
+      item.style.removeProperty("grid-row-end");
       return;
     }
 
     const estimatedHeight = columnWidth * aspect;
     const span = Math.max(
       1,
-      Math.round((estimatedHeight + rowGap) / (rowHeight + rowGap))
+      Math.round((estimatedHeight + rowGap) / (rowHeight + rowGap)),
     );
     item.style.gridRowEnd = `span ${span}`;
   });
@@ -604,21 +613,21 @@ const renderGallery = (items) => {
     if (activeFolder) {
       emptyStateElement.textContent = `No photos in "${activeFolder.name}" yet. Add entries to assets/gallery.json to display them here.`;
     }
-    emptyStateElement.classList.remove('hidden');
-    galleryElement.classList.add('hidden');
+    emptyStateElement.classList.remove("hidden");
+    galleryElement.classList.add("hidden");
     return;
   }
 
-  emptyStateElement.classList.add('hidden');
-  galleryElement.classList.remove('hidden');
+  emptyStateElement.classList.add("hidden");
+  galleryElement.classList.remove("hidden");
 
   const fragment = document.createDocumentFragment();
 
   items.forEach((item, index) => {
     const instance = template.content.firstElementChild.cloneNode(true);
     const figure = instance;
-    const image = figure.querySelector('.gallery-item__image');
-    const downloadLink = figure.querySelector('.gallery-item__download');
+    const image = figure.querySelector(".gallery-item__image");
+    const downloadLink = figure.querySelector(".gallery-item__download");
     const displaySrc = item.thumbnail || item.full;
     const fullSrc = item.full || item.thumbnail;
     const baseWidth = item.thumbnailWidth || item.width;
@@ -631,39 +640,42 @@ const renderGallery = (items) => {
 
     image.alt = item.title;
     image.dataset.index = String(index);
-    image.decoding = 'async';
+    image.decoding = "async";
 
     figure.dataset.index = String(index);
     figure.dataset.photoId = item.id;
     figure.tabIndex = 0;
-    figure.setAttribute('role', 'button');
-    figure.setAttribute('aria-haspopup', 'dialog');
-    figure.setAttribute('aria-label', `View photo: ${item.title}`);
+    figure.setAttribute("role", "button");
+    figure.setAttribute("aria-haspopup", "dialog");
+    figure.setAttribute("aria-label", `View photo: ${item.title}`);
     if (aspectRatio && Number.isFinite(aspectRatio)) {
       figure.dataset.aspectRatio = String(aspectRatio);
       if (baseWidth && baseHeight) {
-        figure.style.setProperty('--gallery-item-aspect', `${baseWidth} / ${baseHeight}`);
+        figure.style.setProperty(
+          "--gallery-item-aspect",
+          `${baseWidth} / ${baseHeight}`,
+        );
       } else {
         figure.style.setProperty(
-          '--gallery-item-aspect',
-          String(1 / Math.max(aspectRatio, Number.EPSILON))
+          "--gallery-item-aspect",
+          String(1 / Math.max(aspectRatio, Number.EPSILON)),
         );
       }
     } else {
       delete figure.dataset.aspectRatio;
-      figure.style.removeProperty('--gallery-item-aspect');
+      figure.style.removeProperty("--gallery-item-aspect");
     }
 
     prepareImageForLazyLoading(image, displaySrc);
     image.addEventListener(
-      'load',
+      "load",
       () => {
         scheduleMasonryUpdate();
       },
-      { once: true }
+      { once: true },
     );
 
-    const overlayTitle = figure.querySelector('.gallery-item__title');
+    const overlayTitle = figure.querySelector(".gallery-item__title");
     if (overlayTitle) {
       overlayTitle.textContent = item.title;
     }
@@ -673,12 +685,12 @@ const renderGallery = (items) => {
       const proxiedHref = createDownloadUrl(fullSrc, downloadName);
       if (proxiedHref) {
         downloadLink.href = proxiedHref;
-        downloadLink.setAttribute('download', downloadName);
+        downloadLink.setAttribute("download", downloadName);
       } else {
         downloadLink.href = fullSrc;
-        downloadLink.removeAttribute('download');
+        downloadLink.removeAttribute("download");
       }
-      downloadLink.title = 'Download photo';
+      downloadLink.title = "Download photo";
     }
 
     fragment.appendChild(instance);
@@ -693,26 +705,26 @@ function renderFolderControls() {
     return;
   }
 
-  folderControls.innerHTML = '';
+  folderControls.innerHTML = "";
   folderButtons = [];
-  folderControls.removeEventListener('keydown', handleFolderKeydown);
+  folderControls.removeEventListener("keydown", handleFolderKeydown);
 
   if (folders.length <= 1) {
-    folderControls.classList.add('hidden');
+    folderControls.classList.add("hidden");
     return;
   }
 
-  folderControls.classList.remove('hidden');
+  folderControls.classList.remove("hidden");
 
   const fragment = document.createDocumentFragment();
 
   folders.forEach((folder, index) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'folder-controls__button';
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "folder-controls__button";
     button.textContent = folder.name;
     button.dataset.index = String(index);
-    button.addEventListener('click', () => {
+    button.addEventListener("click", () => {
       setActiveFolder(index);
       showGrid({ updateHistory: false });
     });
@@ -720,9 +732,9 @@ function renderFolderControls() {
   });
 
   folderControls.appendChild(fragment);
-  folderButtons = Array.from(folderControls.querySelectorAll('button'));
+  folderButtons = Array.from(folderControls.querySelectorAll("button"));
 
-  folderControls.addEventListener('keydown', handleFolderKeydown);
+  folderControls.addEventListener("keydown", handleFolderKeydown);
 }
 
 function handleFolderKeydown(event) {
@@ -731,12 +743,12 @@ function handleFolderKeydown(event) {
   }
 
   const { key } = event;
-  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) {
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) {
     return;
   }
 
   event.preventDefault();
-  const direction = key === 'ArrowLeft' || key === 'ArrowUp' ? -1 : 1;
+  const direction = key === "ArrowLeft" || key === "ArrowUp" ? -1 : 1;
   const currentFocusedIndex = folderButtons.indexOf(document.activeElement);
   const fallbackIndex =
     currentFocusedIndex >= 0 ? currentFocusedIndex : currentFolderIndex;
@@ -747,7 +759,10 @@ function handleFolderKeydown(event) {
   showGrid({ updateHistory: false });
 }
 
-function setActiveFolder(index, { updateHistory = true, replaceHistory = false } = {}) {
+function setActiveFolder(
+  index,
+  { updateHistory = true, replaceHistory = false } = {},
+) {
   if (!folders[index]) {
     return;
   }
@@ -774,12 +789,16 @@ function updateFolderSelectionUI() {
 
   folderButtons.forEach((button, index) => {
     const isActive = index === currentFolderIndex;
-    button.classList.toggle('is-active', isActive);
-    button.setAttribute('aria-pressed', String(isActive));
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
   });
 }
 
-function openDetail(folderIndex, photoIndex, { updateHistory = true, replaceHistory = false } = {}) {
+function openDetail(
+  folderIndex,
+  photoIndex,
+  { updateHistory = true, replaceHistory = false } = {},
+) {
   if (!folders[folderIndex] || !folders[folderIndex].photos[photoIndex]) {
     return;
   }
@@ -799,7 +818,7 @@ function openDetail(folderIndex, photoIndex, { updateHistory = true, replaceHist
   detailTitle.textContent = photo.title;
   if (detailCount) {
     const humanIndex = currentPhotoIndex + 1;
-    detailCount.textContent = `Photo ${humanIndex} of ${currentPhotos.length}`;
+    detailCount.textContent = `${humanIndex} / ${currentPhotos.length}`;
   }
   ensurePhotoPreloaded(photo);
 
@@ -808,10 +827,10 @@ function openDetail(folderIndex, photoIndex, { updateHistory = true, replaceHist
     const proxiedHref = createDownloadUrl(photo.full, downloadName);
     if (proxiedHref) {
       detailDownloadButton.href = proxiedHref;
-      detailDownloadButton.setAttribute('download', downloadName);
+      detailDownloadButton.setAttribute("download", downloadName);
     } else {
       detailDownloadButton.href = photo.full;
-      detailDownloadButton.removeAttribute('download');
+      detailDownloadButton.removeAttribute("download");
     }
   }
 
@@ -821,16 +840,16 @@ function openDetail(folderIndex, photoIndex, { updateHistory = true, replaceHist
     detailNextButton.disabled = disableNav;
   }
 
-  detailView.classList.remove('hidden');
-  detailView.setAttribute('aria-hidden', 'false');
+  detailView.classList.remove("hidden");
+  detailView.setAttribute("aria-hidden", "false");
   detailView.scrollTop = 0;
   toggleBodyLock(true);
-  if (typeof detailView.focus === 'function') {
+  if (typeof detailView.focus === "function") {
     detailView.focus({ preventScroll: true });
   }
-  pageElement?.classList.add('page--lightbox-active');
-  galleryElement?.setAttribute('aria-hidden', 'true');
-  emptyStateElement.classList.add('hidden');
+  pageElement?.classList.add("page--lightbox-active");
+  galleryElement?.setAttribute("aria-hidden", "true");
+  emptyStateElement.classList.add("hidden");
 
   document.title = `${photo.title} • ${basePageTitle}`;
 
@@ -847,21 +866,21 @@ function openDetail(folderIndex, photoIndex, { updateHistory = true, replaceHist
 
 function showGrid({ updateHistory = true, replaceHistory = false } = {}) {
   currentPhotoIndex = -1;
-  detailView.classList.add('hidden');
-  detailView.setAttribute('aria-hidden', 'true');
+  detailView.classList.add("hidden");
+  detailView.setAttribute("aria-hidden", "true");
   toggleBodyLock(false);
-  pageElement?.classList.remove('page--lightbox-active');
-  galleryElement?.removeAttribute('aria-hidden');
+  pageElement?.classList.remove("page--lightbox-active");
+  galleryElement?.removeAttribute("aria-hidden");
   document.title = basePageTitle;
 
   if (detailImage) {
-    detailImage.src = '';
-    detailImage.removeAttribute('src');
-    detailImage.alt = '';
+    detailImage.src = "";
+    detailImage.removeAttribute("src");
+    detailImage.alt = "";
   }
   if (detailDownloadButton) {
-    detailDownloadButton.href = '#';
-    detailDownloadButton.removeAttribute('download');
+    detailDownloadButton.href = "#";
+    detailDownloadButton.removeAttribute("download");
   }
 
   if (updateHistory) {
@@ -902,10 +921,10 @@ function handlePopState(event) {
   isHandlingPopState = true;
   try {
     const state =
-      event?.state && typeof event.state === 'object'
+      event?.state && typeof event.state === "object"
         ? {
             folderId: normalizeFolderId(event.state.folderId),
-            photoId: safeText(event.state.photoId, ''),
+            photoId: safeText(event.state.photoId, ""),
           }
         : parseLocationState();
 
@@ -943,9 +962,9 @@ const boot = async () => {
     baseFolders = await fetchManifest();
     if (!Array.isArray(baseFolders) || baseFolders.length === 0) {
       emptyStateElement.textContent =
-        'No folders found. Add at least one folder with photos in assets/gallery.json.';
-      emptyStateElement.classList.remove('hidden');
-      folderControls?.classList.add('hidden');
+        "No folders found. Add at least one folder with photos in assets/gallery.json.";
+      emptyStateElement.classList.remove("hidden");
+      folderControls?.classList.add("hidden");
       return;
     }
 
@@ -979,33 +998,33 @@ const boot = async () => {
 
     updateHistoryState({
       folderId: activeFolder ? activeFolder.id : AGGREGATE_FOLDER_ID,
-      photoId: activePhoto ? activePhoto.id : '',
+      photoId: activePhoto ? activePhoto.id : "",
       replace: true,
     });
 
-    window.addEventListener('popstate', handlePopState);
+    window.addEventListener("popstate", handlePopState);
   } catch (error) {
     console.error(error);
     emptyStateElement.textContent = `${error.message}. Please open index.html via a local server.`;
-    emptyStateElement.classList.remove('hidden');
+    emptyStateElement.classList.remove("hidden");
   } finally {
     toggleLoading(false);
     scheduleMasonryUpdate();
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   boot().catch((error) => console.error(error));
 });
 
-window.addEventListener('resize', () => {
+window.addEventListener("resize", () => {
   if (resizeTimerId) {
     window.clearTimeout(resizeTimerId);
   }
   resizeTimerId = window.setTimeout(() => scheduleMasonryUpdate(), 120);
 });
 
-homeLink?.addEventListener('click', (event) => {
+homeLink?.addEventListener("click", (event) => {
   event.preventDefault();
   if (!folders.length) {
     return;
@@ -1024,7 +1043,7 @@ const getPhotoFromItem = (item) => {
 
 const clearHoverPreload = (item) => {
   const timerId = hoverPreloadTimers.get(item);
-  if (typeof timerId === 'number') {
+  if (typeof timerId === "number") {
     window.clearTimeout(timerId);
     hoverPreloadTimers.delete(item);
   }
@@ -1046,11 +1065,16 @@ const scheduleHoverPreload = (item) => {
 };
 
 const preloadAdjacentDetailPhotos = () => {
-  if (!Array.isArray(currentPhotos) || currentPhotos.length < 2 || currentPhotoIndex === -1) {
+  if (
+    !Array.isArray(currentPhotos) ||
+    currentPhotos.length < 2 ||
+    currentPhotoIndex === -1
+  ) {
     return;
   }
 
-  const prevIndex = (currentPhotoIndex - 1 + currentPhotos.length) % currentPhotos.length;
+  const prevIndex =
+    (currentPhotoIndex - 1 + currentPhotos.length) % currentPhotos.length;
   const nextIndex = (currentPhotoIndex + 1) % currentPhotos.length;
 
   if (prevIndex !== currentPhotoIndex) {
@@ -1062,38 +1086,48 @@ const preloadAdjacentDetailPhotos = () => {
 };
 
 galleryElement?.addEventListener(
-  'pointerenter',
+  "pointerenter",
   (event) => {
     const item =
-      event.target instanceof Element ? event.target.closest(GALLERY_ITEM_SELECTOR) : null;
+      event.target instanceof Element
+        ? event.target.closest(GALLERY_ITEM_SELECTOR)
+        : null;
     if (!item || !galleryElement.contains(item)) {
       return;
     }
-    if (event.relatedTarget instanceof Element && item.contains(event.relatedTarget)) {
+    if (
+      event.relatedTarget instanceof Element &&
+      item.contains(event.relatedTarget)
+    ) {
       return;
     }
     scheduleHoverPreload(item);
   },
-  true
+  true,
 );
 
 galleryElement?.addEventListener(
-  'pointerleave',
+  "pointerleave",
   (event) => {
     const item =
-      event.target instanceof Element ? event.target.closest(GALLERY_ITEM_SELECTOR) : null;
+      event.target instanceof Element
+        ? event.target.closest(GALLERY_ITEM_SELECTOR)
+        : null;
     if (!item || !galleryElement.contains(item)) {
       return;
     }
-    if (event.relatedTarget instanceof Element && item.contains(event.relatedTarget)) {
+    if (
+      event.relatedTarget instanceof Element &&
+      item.contains(event.relatedTarget)
+    ) {
       return;
     }
     clearHoverPreload(item);
   },
-  true
+  true,
 );
 
-galleryElement?.addEventListener('click', (event) => {
+galleryElement?.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element) || target.closest(DOWNLOAD_LINK_SELECTOR)) {
     return;
@@ -1110,7 +1144,7 @@ galleryElement?.addEventListener('click', (event) => {
   }
 });
 
-galleryElement?.addEventListener('keydown', (event) => {
+galleryElement?.addEventListener("keydown", (event) => {
   if (
     !(event.target instanceof Element) ||
     event.target.closest(DOWNLOAD_LINK_SELECTOR)
@@ -1118,7 +1152,7 @@ galleryElement?.addEventListener('keydown', (event) => {
     return;
   }
 
-  if (event.key !== 'Enter' && event.key !== ' ') {
+  if (event.key !== "Enter" && event.key !== " ") {
     return;
   }
 
@@ -1134,26 +1168,26 @@ galleryElement?.addEventListener('keydown', (event) => {
   }
 });
 
-detailCloseButton?.addEventListener('click', () => showGrid());
-detailPrevButton?.addEventListener('click', () => showRelative(-1));
-detailNextButton?.addEventListener('click', () => showRelative(1));
+detailCloseButton?.addEventListener("click", () => showGrid());
+detailPrevButton?.addEventListener("click", () => showRelative(-1));
+detailNextButton?.addEventListener("click", () => showRelative(1));
 
-detailView?.addEventListener('click', (event) => {
+detailView?.addEventListener("click", (event) => {
   if (event.target === detailView) {
     showGrid();
   }
 });
 
-document.addEventListener('keydown', (event) => {
+document.addEventListener("keydown", (event) => {
   if (currentPhotoIndex === -1) {
     return;
   }
 
-  if (event.key === 'Escape') {
+  if (event.key === "Escape") {
     showGrid();
-  } else if (event.key === 'ArrowRight') {
+  } else if (event.key === "ArrowRight") {
     showRelative(1);
-  } else if (event.key === 'ArrowLeft') {
+  } else if (event.key === "ArrowLeft") {
     showRelative(-1);
   }
 });

@@ -3,10 +3,10 @@
   "$id": "https://example.com/schemas/gallery.schema.json",
   "title": "Gallery Configuration",
   "type": "object",
-  "description": "Root gallery definition consisting of configuration metadata and an ordered list of folders.",
+  "description": "Root gallery definition consisting of configuration metadata and an ordered list of photos.",
   "additionalProperties": false,
   "required": [
-    "folders"
+    "photos"
   ],
   "properties": {
     "$schema": {
@@ -36,48 +36,15 @@
       "format": "uri-reference",
       "description": "Optional URL or path to a ZIP archive containing all photos."
     },
-    "folders": {
+    "photos": {
       "type": "array",
-      "description": "Ordered list of folders visible in the gallery.",
+      "description": "Ordered list of photos visible in the gallery.",
       "items": {
-        "$ref": "#/definitions/folder"
+        "$ref": "#/definitions/photo"
       }
     }
   },
   "definitions": {
-    "folder": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "photos"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Unique identifier for the folder."
-        },
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Display name for the folder."
-        },
-        "description": {
-          "type": "string",
-          "description": "Optional descriptive text for the folder.",
-          "default": ""
-        },
-        "photos": {
-          "type": "array",
-          "description": "Ordered list of photos contained in the folder.",
-          "items": {
-            "$ref": "#/definitions/photo"
-          }
-        }
-      }
-    },
     "photo": {
       "type": "object",
       "additionalProperties": false,

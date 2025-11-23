@@ -4,7 +4,6 @@ const template = document.getElementById("gallery-item-template");
 const folderControls = document.getElementById("folder-controls");
 const detailView = document.getElementById("detail-view");
 const detailImage = document.getElementById("detail-image");
-const detailTitle = document.getElementById("detail-title");
 const detailCount = document.getElementById("detail-count");
 const detailCloseButton = document.getElementById("detail-close");
 const detailPrevButton = document.getElementById("detail-prev");
@@ -19,9 +18,6 @@ const downloadAllButton = document.getElementById("download-all");
 const bodyElement = document.body || document.querySelector("body");
 const pageElement = document.querySelector(".page");
 
-const AGGREGATE_FOLDER_ID = "alle";
-const AGGREGATE_FOLDER_NAME = "All Photos";
-
 const basePageTitle = document.title;
 const initialHeroEyebrow = heroEyebrowElement?.textContent ?? "";
 const initialHeroTitle = heroTitleElement?.textContent ?? "";
@@ -34,10 +30,7 @@ let heroConfig = {
   image: "",
 };
 
-let baseFolders = [];
-let folders = [];
-let folderButtons = [];
-let currentFolderIndex = 0;
+let basePhotos = [];
 let currentPhotos = [];
 let currentPhotoIndex = -1;
 let masonryRafId = null;
@@ -102,40 +95,21 @@ const PLACEHOLDER_IMAGE =
 const escapeForSingleQuotes = (value) =>
   String(value || "").replace(/'/g, "\\'");
 
-const findFirstPhotoInFolder = (folder) => {
-  if (!folder || !Array.isArray(folder.photos)) {
+const findFirstPhoto = (photos) => {
+  if (!Array.isArray(photos)) {
     return null;
   }
-  return (
-    folder.photos.find((photo) => photo && (photo.full || photo.thumbnail)) ||
-    null
-  );
+  return photos.find((photo) => photo && (photo.full || photo.thumbnail)) || null;
 };
 
-const resolveHeroPhoto = (folderIndex = currentFolderIndex) => {
-  const candidateFolders = [];
-  const seenIds = new Set();
-
-  const enqueue = (folder) => {
-    if (!folder || seenIds.has(folder.id)) {
-      return;
-    }
-    seenIds.add(folder.id);
-    candidateFolders.push(folder);
-  };
-
-  enqueue(folders[folderIndex]);
-  enqueue(baseFolders[folderIndex]);
-  baseFolders.forEach(enqueue);
-  folders.forEach(enqueue);
-
-  for (const folder of candidateFolders) {
-    const photo = findFirstPhotoInFolder(folder);
+const resolveHeroPhoto = () => {
+  const candidateLists = [currentPhotos, basePhotos];
+  for (const list of candidateLists) {
+    const photo = findFirstPhoto(list);
     if (photo) {
       return photo;
     }
   }
-
   return null;
 };
 
@@ -154,7 +128,7 @@ const applyHeroContent = () => {
   }
 };
 
-const updateHeroBackground = (folderIndex = currentFolderIndex) => {
+const updateHeroBackground = () => {
   if (!heroElement) {
     return;
   }
@@ -167,7 +141,7 @@ const updateHeroBackground = (folderIndex = currentFolderIndex) => {
     return;
   }
 
-  const candidate = resolveHeroPhoto(folderIndex);
+  const candidate = resolveHeroPhoto();
   if (!candidate) {
     heroElement.style.removeProperty("--hero-image");
     return;
@@ -286,11 +260,6 @@ const toggleBodyLock = (shouldLock) => {
   bodyElement.classList.toggle("is-locked", shouldLock);
 };
 
-const normalizeFolderId = (value) => {
-  const cleaned = safeText(value, "");
-  return cleaned || AGGREGATE_FOLDER_ID;
-};
-
 const buildPathFromState = ({ photoId }) => {
   const normalizedPhoto = safeText(photoId, "");
   if (!normalizedPhoto) {
@@ -308,14 +277,12 @@ const parseLocationState = () => {
 
   const photoId = segments[0] || "";
   return {
-    folderId: AGGREGATE_FOLDER_ID,
     photoId: safeText(photoId, ""),
   };
 };
 
-const updateHistoryState = ({ folderId, photoId = "", replace = false }) => {
+const updateHistoryState = ({ photoId = "", replace = false }) => {
   const state = {
-    folderId: normalizeFolderId(folderId),
     photoId: safeText(photoId, ""),
   };
   const path = buildPathFromState(state);
@@ -361,35 +328,6 @@ const createDownloadUrl = (source, filename) => {
   return `/download?${params.toString()}`;
 };
 
-const buildFoldersWithAggregate = (rawFolders) => {
-  const aggregatePhotos = [];
-
-  rawFolders.forEach((folder, folderIndex) => {
-    folder.photos.forEach((photo, photoIndex) => {
-      aggregatePhotos.push({
-        ...photo,
-        sourceFolderIndex: folderIndex,
-        sourcePhotoIndex: photoIndex,
-      });
-    });
-  });
-
-  const clonedFolders = rawFolders.map((folder) => ({
-    ...folder,
-    photos: folder.photos.map((photo) => ({ ...photo })),
-  }));
-
-  return [
-    {
-      id: AGGREGATE_FOLDER_ID,
-      name: AGGREGATE_FOLDER_NAME,
-      description: "All images from every folder.",
-      photos: aggregatePhotos,
-    },
-    ...clonedFolders,
-  ];
-};
-
 const applySizeMode = () => {
   scheduleMasonryUpdate();
 };
@@ -421,7 +359,7 @@ const fetchManifest = async () => {
   applyHeroContent();
   heroElement?.style.removeProperty("--hero-image");
 
-  let foldersPayload = payload;
+  let photosPayload = payload;
 
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     const heroImageSource = safeText(payload.heroImage, "");
@@ -455,69 +393,58 @@ const fetchManifest = async () => {
         downloadAllButton.removeAttribute("download");
       }
     }
-    if (Array.isArray(payload.folders)) {
-      foldersPayload = payload.folders;
+    if (Array.isArray(payload.photos)) {
+      photosPayload = payload.photos;
     } else {
-      throw new Error("The gallery configuration must include a folders array");
+      throw new Error("The gallery configuration must include a photos array");
     }
   }
 
-  if (!Array.isArray(foldersPayload)) {
+  if (!Array.isArray(photosPayload)) {
     throw new Error(
-      "The gallery configuration must be an array or contain a folders array",
+      "The gallery configuration must be an array or contain a photos array",
     );
   }
 
-  return foldersPayload.map((folder, folderIndex) => {
-    const photos = Array.isArray(folder.photos) ? folder.photos : [];
+  return photosPayload
+    .map((item, photoIndex) => {
+      const width = toPositiveNumber(item.width);
+      const height = toPositiveNumber(item.height);
+      const thumbnailWidth = toPositiveNumber(item.thumbnailWidth);
+      const thumbnailHeight = toPositiveNumber(item.thumbnailHeight);
 
-    const normalizedPhotos = photos
-      .map((item, photoIndex) => {
-        const width = toPositiveNumber(item.width);
-        const height = toPositiveNumber(item.height);
-        const thumbnailWidth = toPositiveNumber(item.thumbnailWidth);
-        const thumbnailHeight = toPositiveNumber(item.thumbnailHeight);
-
-        let aspectRatio = toPositiveNumber(item.aspectRatio);
-        if (!aspectRatio) {
-          if (thumbnailWidth && thumbnailHeight) {
-            aspectRatio = thumbnailHeight / thumbnailWidth;
-          } else if (width && height) {
-            aspectRatio = height / width;
-          }
+      let aspectRatio = toPositiveNumber(item.aspectRatio);
+      if (!aspectRatio) {
+        if (thumbnailWidth && thumbnailHeight) {
+          aspectRatio = thumbnailHeight / thumbnailWidth;
+        } else if (width && height) {
+          aspectRatio = height / width;
         }
+      }
 
-        const orientation = deriveOrientation(
-          item.orientation,
-          thumbnailWidth || width,
-          thumbnailHeight || height,
-        );
+      const orientation = deriveOrientation(
+        item.orientation,
+        thumbnailWidth || width,
+        thumbnailHeight || height,
+      );
 
-        return {
-          id: safeText(item.id, `photo-${folderIndex}-${photoIndex}`),
-          title: safeText(item.title, "Untitled photo"),
-          description: safeText(item.description, ""),
-          thumbnail: resolveAssetPath(
-            item.thumbnail || item.full || item.src || "",
-          ),
-          full: resolveAssetPath(item.full || item.src || item.thumbnail || ""),
-          width,
-          height,
-          thumbnailWidth,
-          thumbnailHeight,
-          aspectRatio: aspectRatio || null,
-          orientation,
-        };
-      })
-      .filter((item) => item.full || item.thumbnail);
-
-    return {
-      id: safeText(folder.id, `folder-${folderIndex}`),
-      name: safeText(folder.name || folder.title, `Folder ${folderIndex + 1}`),
-      description: safeText(folder.description, ""),
-      photos: normalizedPhotos,
-    };
-  });
+      return {
+        id: safeText(item.id, `photo-${photoIndex}`),
+        title: safeText(item.title, "Untitled photo"),
+        description: safeText(item.description, ""),
+        thumbnail: resolveAssetPath(
+          item.thumbnail || item.full || item.src || "",
+        ),
+        full: resolveAssetPath(item.full || item.src || item.thumbnail || ""),
+        width,
+        height,
+        thumbnailWidth,
+        thumbnailHeight,
+        aspectRatio: aspectRatio || null,
+        orientation,
+      };
+    })
+    .filter((item) => item.full || item.thumbnail);
 };
 
 const clearGallery = () => {
@@ -609,10 +536,8 @@ const renderGallery = (items) => {
   clearGallery();
 
   if (items.length === 0) {
-    const activeFolder = folders[currentFolderIndex];
-    if (activeFolder) {
-      emptyStateElement.textContent = `No photos in "${activeFolder.name}" yet. Add entries to assets/gallery.json to display them here.`;
-    }
+    emptyStateElement.textContent =
+      "No photos found yet. Add entries to assets/gallery.json to display them here.";
     emptyStateElement.classList.remove("hidden");
     galleryElement.classList.add("hidden");
     return;
@@ -677,7 +602,7 @@ const renderGallery = (items) => {
 
     const overlayTitle = figure.querySelector(".gallery-item__title");
     if (overlayTitle) {
-      overlayTitle.textContent = item.title;
+      overlayTitle.textContent = `Photo ${index + 1}`;
     }
 
     if (downloadLink && fullSrc) {
@@ -700,122 +625,17 @@ const renderGallery = (items) => {
   scheduleMasonryUpdate();
 };
 
-function renderFolderControls() {
-  if (!folderControls) {
+function openDetail(photoIndex, { updateHistory = true, replaceHistory = false } = {}) {
+  if (!currentPhotos[photoIndex]) {
     return;
   }
 
-  folderControls.innerHTML = "";
-  folderButtons = [];
-  folderControls.removeEventListener("keydown", handleFolderKeydown);
-
-  if (folders.length <= 1) {
-    folderControls.classList.add("hidden");
-    return;
-  }
-
-  folderControls.classList.remove("hidden");
-
-  const fragment = document.createDocumentFragment();
-
-  folders.forEach((folder, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "folder-controls__button";
-    button.textContent = folder.name;
-    button.dataset.index = String(index);
-    button.addEventListener("click", () => {
-      setActiveFolder(index);
-      showGrid({ updateHistory: false });
-    });
-    fragment.appendChild(button);
-  });
-
-  folderControls.appendChild(fragment);
-  folderButtons = Array.from(folderControls.querySelectorAll("button"));
-
-  folderControls.addEventListener("keydown", handleFolderKeydown);
-}
-
-function handleFolderKeydown(event) {
-  if (!folderButtons.length) {
-    return;
-  }
-
-  const { key } = event;
-  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) {
-    return;
-  }
-
-  event.preventDefault();
-  const direction = key === "ArrowLeft" || key === "ArrowUp" ? -1 : 1;
-  const currentFocusedIndex = folderButtons.indexOf(document.activeElement);
-  const fallbackIndex =
-    currentFocusedIndex >= 0 ? currentFocusedIndex : currentFolderIndex;
-  const nextIndex =
-    (fallbackIndex + direction + folderButtons.length) % folderButtons.length;
-  folderButtons[nextIndex].focus();
-  setActiveFolder(nextIndex);
-  showGrid({ updateHistory: false });
-}
-
-function setActiveFolder(
-  index,
-  { updateHistory = true, replaceHistory = false } = {},
-) {
-  if (!folders[index]) {
-    return;
-  }
-
-  currentFolderIndex = index;
-  currentPhotos = folders[index].photos || [];
-  currentPhotoIndex = -1;
-
-  updateFolderSelectionUI();
-  renderGallery(currentPhotos);
-  updateHeroBackground(index);
-  scheduleMasonryUpdate();
-
-  if (updateHistory) {
-    const folder = folders[index];
-    updateHistoryState({ folderId: folder.id, replace: replaceHistory });
-  }
-}
-
-function updateFolderSelectionUI() {
-  if (!folderButtons.length) {
-    return;
-  }
-
-  folderButtons.forEach((button, index) => {
-    const isActive = index === currentFolderIndex;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", String(isActive));
-  });
-}
-
-function openDetail(
-  folderIndex,
-  photoIndex,
-  { updateHistory = true, replaceHistory = false } = {},
-) {
-  if (!folders[folderIndex] || !folders[folderIndex].photos[photoIndex]) {
-    return;
-  }
-
-  if (folderIndex !== currentFolderIndex) {
-    setActiveFolder(folderIndex, { updateHistory: false });
-  }
-
-  currentPhotos = folders[currentFolderIndex].photos || [];
   currentPhotoIndex = photoIndex;
 
   const photo = currentPhotos[currentPhotoIndex];
-  const activeFolder = folders[currentFolderIndex];
 
   detailImage.src = photo.full;
   detailImage.alt = photo.title;
-  detailTitle.textContent = photo.title;
   if (detailCount) {
     const humanIndex = currentPhotoIndex + 1;
     detailCount.textContent = `${humanIndex} / ${currentPhotos.length}`;
@@ -857,7 +677,6 @@ function openDetail(
 
   if (updateHistory) {
     updateHistoryState({
-      folderId: activeFolder ? activeFolder.id : AGGREGATE_FOLDER_ID,
       photoId: photo.id,
       replace: replaceHistory,
     });
@@ -884,9 +703,7 @@ function showGrid({ updateHistory = true, replaceHistory = false } = {}) {
   }
 
   if (updateHistory) {
-    const folder = folders[currentFolderIndex];
-    const folderId = folder ? folder.id : AGGREGATE_FOLDER_ID;
-    updateHistoryState({ folderId, replace: replaceHistory });
+    updateHistoryState({ replace: replaceHistory });
   }
 
   scheduleMasonryUpdate();
@@ -899,18 +716,14 @@ function showRelative(delta) {
 
   const nextIndex =
     (currentPhotoIndex + delta + currentPhotos.length) % currentPhotos.length;
-  openDetail(currentFolderIndex, nextIndex);
+  openDetail(nextIndex);
 }
 
-function findFolderIndexById(id) {
-  return folders.findIndex((folder) => folder.id === id);
-}
-
-function findPhotoIndexById(folderIndex, photoId) {
-  if (!folders[folderIndex]) {
+function findPhotoIndexById(photoId) {
+  if (!photoId || !Array.isArray(currentPhotos)) {
     return -1;
   }
-  return folders[folderIndex].photos.findIndex((photo) => photo.id === photoId);
+  return currentPhotos.findIndex((photo) => photo.id === photoId);
 }
 
 function handlePopState(event) {
@@ -923,29 +736,18 @@ function handlePopState(event) {
     const state =
       event?.state && typeof event.state === "object"
         ? {
-            folderId: normalizeFolderId(event.state.folderId),
             photoId: safeText(event.state.photoId, ""),
           }
         : parseLocationState();
 
-    if (!folders.length) {
+    if (!currentPhotos.length) {
       return;
     }
 
-    let targetFolderIndex = findFolderIndexById(state.folderId);
-    if (targetFolderIndex === -1) {
-      targetFolderIndex = findFolderIndexById(AGGREGATE_FOLDER_ID);
-      if (targetFolderIndex === -1) {
-        targetFolderIndex = 0;
-      }
-    }
-
-    setActiveFolder(targetFolderIndex, { updateHistory: false });
-
     if (state.photoId) {
-      const photoIndex = findPhotoIndexById(targetFolderIndex, state.photoId);
+      const photoIndex = findPhotoIndexById(state.photoId);
       if (photoIndex !== -1) {
-        openDetail(targetFolderIndex, photoIndex, { updateHistory: false });
+        openDetail(photoIndex, { updateHistory: false });
         return;
       }
     }
@@ -959,45 +761,41 @@ function handlePopState(event) {
 const boot = async () => {
   toggleLoading(true);
   try {
-    baseFolders = await fetchManifest();
-    if (!Array.isArray(baseFolders) || baseFolders.length === 0) {
+    basePhotos = await fetchManifest();
+    if (!Array.isArray(basePhotos) || basePhotos.length === 0) {
       emptyStateElement.textContent =
-        "No folders found. Add at least one folder with photos in assets/gallery.json.";
+        "No photos found. Add entries to assets/gallery.json.";
       emptyStateElement.classList.remove("hidden");
       folderControls?.classList.add("hidden");
       return;
     }
 
-    folders = buildFoldersWithAggregate(baseFolders);
+    currentPhotos = [...basePhotos];
+    folderControls?.classList.add("hidden");
 
-    renderFolderControls();
+    renderGallery(currentPhotos);
+    updateHeroBackground();
     applySizeMode();
 
     const { photoId } = parseLocationState();
-    const aggregateIndex = findFolderIndexById(AGGREGATE_FOLDER_ID);
-    const initialFolderIndex = aggregateIndex !== -1 ? aggregateIndex : 0;
-
-    setActiveFolder(initialFolderIndex, { updateHistory: false });
 
     let openedPhoto = false;
     if (photoId) {
-      const photoIndex = findPhotoIndexById(initialFolderIndex, photoId);
+      const photoIndex = findPhotoIndexById(photoId);
       if (photoIndex !== -1) {
-        openDetail(initialFolderIndex, photoIndex, {
+        openDetail(photoIndex, {
           updateHistory: false,
         });
         openedPhoto = true;
       }
     }
 
-    const activeFolder = folders[currentFolderIndex];
     const activePhoto =
       openedPhoto && currentPhotos[currentPhotoIndex]
         ? currentPhotos[currentPhotoIndex]
         : null;
 
     updateHistoryState({
-      folderId: activeFolder ? activeFolder.id : AGGREGATE_FOLDER_ID,
       photoId: activePhoto ? activePhoto.id : "",
       replace: true,
     });
@@ -1026,10 +824,6 @@ window.addEventListener("resize", () => {
 
 homeLink?.addEventListener("click", (event) => {
   event.preventDefault();
-  if (!folders.length) {
-    return;
-  }
-  setActiveFolder(0);
   showGrid({ updateHistory: false });
 });
 
@@ -1140,7 +934,7 @@ galleryElement?.addEventListener("click", (event) => {
 
   const photoIndex = Number(item.dataset.index);
   if (!Number.isNaN(photoIndex)) {
-    openDetail(currentFolderIndex, photoIndex);
+    openDetail(photoIndex);
   }
 });
 
@@ -1164,7 +958,7 @@ galleryElement?.addEventListener("keydown", (event) => {
   event.preventDefault();
   const photoIndex = Number(item.dataset.index);
   if (!Number.isNaN(photoIndex)) {
-    openDetail(currentFolderIndex, photoIndex);
+    openDetail(photoIndex);
   }
 });
 

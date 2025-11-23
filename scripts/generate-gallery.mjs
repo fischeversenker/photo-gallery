@@ -3,36 +3,45 @@
 /**
  * Generate a gallery manifest (gallery.json) from assets/photos.
  *
- * - Each first-level folder beneath assets/photos becomes a gallery folder.
- * - Each image file inside a folder becomes a photo entry referencing a relative path.
- * - Resulting manifest uses the schema at assets/gallery.schema.json.
+ * - All image files found under assets/photos (recursively) are flattened into
+ *   a single list (no folders in the output schema).
+ * - Thumbnail/full pairs are inferred via configurable filename suffixes.
+ * - Resulting manifest matches assets/gallery.schema.json.
  *
  * Usage:
  *   node scripts/generate-gallery.mjs [outputPath]
+ *     [--thumbnail-suffix=_small] [--full-suffix=_large]
+ *     [--archive=photos/photos.zip]
+ *     [--hero-eyebrow="Our Wedding"] [--hero-title="Title"]
+ *     [--hero-subtitle="Subtitle"] [--hero-image=photos/hero.jpg]
  *
  * If outputPath is omitted the manifest is written to assets/gallery.generated.json
  * to protect any hand-maintained gallery.json. Review the generated file and rename
  * it to gallery.json once you're ready.
  */
 
-import { promises as fs } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT_DIR = path.resolve(__dirname, "..");
-const PHOTOS_DIR = path.join(ROOT_DIR, "assets", "photos");
-const DEFAULT_OUTPUT = path.join(ROOT_DIR, "assets", "gallery.generated.json");
+const ROOT_DIR = path.resolve(__dirname, '..');
+const ASSETS_DIR = path.join(ROOT_DIR, 'assets');
+const PHOTOS_DIR = path.join(ASSETS_DIR, 'photos');
+const DEFAULT_OUTPUT = path.join(ROOT_DIR, 'assets', 'gallery.generated.json');
+const DEFAULT_THUMBNAIL_SUFFIX = '_small';
+const DEFAULT_FULL_SUFFIX = '_large';
+const DEFAULT_HERO_IMAGE_CANDIDATES = ['hero.jpg', 'hero.jpeg', 'hero.png', 'hero.webp'];
 
 const IMAGE_EXTENSIONS = new Set([
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".gif",
-  ".webp",
-  ".avif",
-  ".svg",
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.svg',
 ]);
 
 const JPEG_SOF_MARKERS = new Set([
@@ -43,10 +52,21 @@ async function readFileSafe(filePath) {
   return fs.readFile(filePath);
 }
 
+async function pathExists(filePath) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function parsePngDimensions(buffer) {
-  const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const PNG_SIGNATURE = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ]);
   if (!buffer.slice(0, 8).equals(PNG_SIGNATURE)) {
-    throw new Error("Invalid PNG signature");
+    throw new Error('Invalid PNG signature');
   }
   // IHDR chunk starts at byte 8, data begins at byte 16.
   const width = buffer.readUInt32BE(16);
@@ -56,7 +76,7 @@ function parsePngDimensions(buffer) {
 
 function parseJpegDimensions(buffer) {
   if (buffer.readUInt16BE(0) !== 0xffd8) {
-    throw new Error("Invalid JPEG header");
+    throw new Error('Invalid JPEG header');
   }
 
   let offset = 2;
@@ -93,18 +113,18 @@ function parseJpegDimensions(buffer) {
     offset += segmentLength - 2;
   }
 
-  throw new Error("Failed to locate JPEG dimensions");
+  throw new Error('Failed to locate JPEG dimensions');
 }
 
 async function getImageDimensions(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const buffer = await readFileSafe(filePath);
 
-  if (ext === ".png") {
+  if (ext === '.png') {
     return parsePngDimensions(buffer);
   }
 
-  if (ext === ".jpg" || ext === ".jpeg") {
+  if (ext === '.jpg' || ext === '.jpeg') {
     return parseJpegDimensions(buffer);
   }
 
@@ -113,90 +133,265 @@ async function getImageDimensions(filePath) {
 
 const toKebabCase = (value) =>
   value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
     .toLowerCase();
 
 const toTitleCase = (value) =>
   value
-    .replace(/[-_]+/g, " ")
-    .split(" ")
+    .replace(/[-_]+/g, ' ')
+    .split(' ')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+    .join(' ');
 
-const isImageFile = (fileName) => IMAGE_EXTENSIONS.has(path.extname(fileName).toLowerCase());
+const toPosixPath = (value) => value.split(path.sep).join(path.posix.sep);
 
-async function readDirectories(dir) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
-}
+const isProbablyUrl = (value) =>
+  /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value) || value.startsWith('//');
 
-async function readFiles(dir) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  return entries.filter((entry) => entry.isFile()).map((entry) => entry.name);
-}
+const normalizeAssetPath = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+  if (isProbablyUrl(trimmed)) {
+    return trimmed;
+  }
+  let stripped = trimmed.replace(/^\.\/*/, '');
+  if (stripped.startsWith('assets/')) {
+    stripped = stripped.slice('assets/'.length);
+  }
+  return toPosixPath(stripped);
+};
 
-async function buildFolder(folderName) {
-  const folderDir = path.join(PHOTOS_DIR, folderName);
-  const files = (await readFiles(folderDir)).filter(isImageFile).sort((a, b) => a.localeCompare(b));
+const stripMarker = (value, marker) => {
+  if (!marker) {
+    return value;
+  }
+  const index = value.indexOf(marker);
+  if (index === -1) {
+    return value;
+  }
+  return `${value.slice(0, index)}${value.slice(index + marker.length)}`;
+};
 
-  const folderId = toKebabCase(folderName);
-  const folderTitle = toTitleCase(folderName);
+const deriveEntryKey = (relativeDir, baseName) => {
+  if (!relativeDir) {
+    return baseName;
+  }
+  return `${relativeDir}/${baseName}`;
+};
 
-  const photos = await Promise.all(
-    files.map(async (fileName, index) => {
-      const baseName = path.parse(fileName).name;
-      const photoId = `${folderId}-${toKebabCase(baseName) || `photo-${index + 1}`}`;
-      const relativePath = `photos/${folderName}/${fileName}`;
-      const title = toTitleCase(baseName);
-      const absolutePath = path.join(folderDir, fileName);
+const classifyBaseName = (baseName, thumbnailSuffix, fullSuffix) => {
+  if (thumbnailSuffix && baseName.includes(thumbnailSuffix)) {
+    return {
+      type: 'thumbnail',
+      cleanBaseName: stripMarker(baseName, thumbnailSuffix),
+    };
+  }
 
-      let width;
-      let height;
-      let aspectRatio;
-      let orientation = "square";
-      try {
-        const dims = await getImageDimensions(absolutePath);
-        if (dims) {
-          ({ width, height } = dims);
-        }
-        if (width && height) {
-          aspectRatio = Number((height / width).toFixed(6));
-          if (height > width) {
-            orientation = "portrait";
-          } else if (width > height) {
-            orientation = "landscape";
-          } else {
-            orientation = "square";
-          }
-        }
-      } catch (error) {
-        console.warn(`⚠ Unable to read dimensions for ${absolutePath}: ${error.message}`);
-      }
-
-      return {
-        id: photoId,
-        title,
-        thumbnail: relativePath,
-        full: relativePath,
-        width,
-        height,
-        thumbnailWidth: width,
-        thumbnailHeight: height,
-        aspectRatio,
-        orientation,
-      };
-    })
-  );
+  if (fullSuffix && baseName.includes(fullSuffix)) {
+    return {
+      type: 'full',
+      cleanBaseName: stripMarker(baseName, fullSuffix),
+    };
+  }
 
   return {
-    id: folderId,
-    name: folderTitle,
-    description: "",
-    photos,
+    type: 'generic',
+    cleanBaseName: baseName,
   };
+};
+
+const determineOrientation = (width, height) => {
+  if (!width || !height) {
+    return 'square';
+  }
+  if (Math.abs(width - height) <= 1) {
+    return 'square';
+  }
+  return height > width ? 'portrait' : 'landscape';
+};
+
+const computeAspectRatio = (width, height) => {
+  if (!width || !height) {
+    return undefined;
+  }
+  return Number((height / width).toFixed(6));
+};
+
+const isImageFile = (fileName) =>
+  IMAGE_EXTENSIONS.has(path.extname(fileName).toLowerCase());
+
+async function collectImageFiles(rootDir) {
+  const results = [];
+
+  const walk = async (currentDir, relativeDir = '') => {
+    const entries = await fs.readdir(currentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        const nextRelative = relativeDir
+          ? path.join(relativeDir, entry.name)
+          : entry.name;
+        await walk(absolutePath, nextRelative);
+        continue;
+      }
+      if (!entry.isFile() || !isImageFile(entry.name)) {
+        continue;
+      }
+      const relativeFilePath = relativeDir
+        ? path.join(relativeDir, entry.name)
+        : entry.name;
+      results.push({
+        absolutePath,
+        relativeDir,
+        fileName: entry.name,
+        relativePath: toPosixPath(path.join('photos', relativeFilePath)),
+      });
+    }
+  };
+
+  await walk(rootDir, '');
+  return results;
+}
+
+async function findDefaultHeroImage() {
+  for (const filename of DEFAULT_HERO_IMAGE_CANDIDATES) {
+    const relative = path.posix.join('photos', filename);
+    const absolute = path.join(ASSETS_DIR, relative);
+    if (await pathExists(absolute)) {
+      return relative;
+    }
+  }
+  return '';
+}
+
+async function buildPhotosFromFiles(files, options) {
+  const { thumbnailSuffix, fullSuffix, nextPhotoId } = options;
+  const entries = new Map();
+
+  for (const file of files) {
+    const { absolutePath, relativeDir, fileName, relativePath } = file;
+    const ext = path.extname(fileName);
+    const baseName = path.basename(fileName, ext);
+    const classification = classifyBaseName(
+      baseName,
+      thumbnailSuffix,
+      fullSuffix
+    );
+    const cleanBaseName = classification.cleanBaseName || baseName;
+    const entryKey = deriveEntryKey(relativeDir, cleanBaseName);
+
+    if (!entries.has(entryKey)) {
+      entries.set(entryKey, {
+        key: entryKey,
+        relativeDir,
+        baseName: cleanBaseName,
+        sortKey: entryKey.toLowerCase(),
+      });
+    }
+
+    const entry = entries.get(entryKey);
+
+    let dimensions = null;
+    try {
+      dimensions = await getImageDimensions(absolutePath);
+    } catch (error) {
+      console.warn(
+        `⚠ Unable to read dimensions for ${absolutePath}: ${error.message}`
+      );
+    }
+
+    const assignDimensions = (target) => {
+      if (!dimensions) {
+        return;
+      }
+      entry[`${target}Width`] = dimensions.width;
+      entry[`${target}Height`] = dimensions.height;
+    };
+
+    if (classification.type === 'thumbnail') {
+      entry.thumbnail = relativePath;
+      assignDimensions('thumbnail');
+    } else if (classification.type === 'full') {
+      entry.full = relativePath;
+      entry.width = dimensions?.width;
+      entry.height = dimensions?.height;
+    } else {
+      if (!entry.full) {
+        entry.full = relativePath;
+        entry.width = dimensions?.width;
+        entry.height = dimensions?.height;
+      }
+      if (!entry.thumbnail) {
+        entry.thumbnail = relativePath;
+        assignDimensions('thumbnail');
+      }
+    }
+  }
+
+  const collator = new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+
+  return Array.from(entries.values())
+    .sort((a, b) => collator.compare(a.sortKey, b.sortKey))
+    .map((entry) => finalizePhotoEntry(entry, nextPhotoId))
+    .filter(Boolean);
+}
+
+function finalizePhotoEntry(entry, nextPhotoId) {
+  const thumbnail = entry.thumbnail || entry.full;
+  const full = entry.full || entry.thumbnail;
+  if (!thumbnail && !full) {
+    return null;
+  }
+
+  const idSeed = [entry.relativeDir, entry.baseName]
+    .filter(Boolean)
+    .join(' ');
+  const id = toKebabCase(idSeed) || nextPhotoId();
+  const titleSource = entry.baseName?.replace(/[-_]+/g, ' ').trim();
+  const title = titleSource ? toTitleCase(titleSource) : 'Untitled photo';
+
+  const width = entry.width ?? entry.thumbnailWidth;
+  const height = entry.height ?? entry.thumbnailHeight;
+  const aspectRatio = computeAspectRatio(width, height);
+  const orientation = determineOrientation(width, height);
+
+  const photo = {
+    id,
+    title,
+    description: '',
+    thumbnail,
+    full,
+    orientation,
+  };
+
+  if (entry.width) {
+    photo.width = entry.width;
+  }
+  if (entry.height) {
+    photo.height = entry.height;
+  }
+  if (entry.thumbnailWidth) {
+    photo.thumbnailWidth = entry.thumbnailWidth;
+  }
+  if (entry.thumbnailHeight) {
+    photo.thumbnailHeight = entry.thumbnailHeight;
+  }
+  if (aspectRatio) {
+    photo.aspectRatio = aspectRatio;
+  }
+
+  return photo;
 }
 
 async function main() {
@@ -207,6 +402,8 @@ async function main() {
   let heroTitleArg;
   let heroSubtitleArg;
   let heroImageArg;
+  let thumbnailSuffixArg;
+  let fullSuffixArg;
 
   for (const arg of args) {
     if (arg.startsWith('--archive=')) {
@@ -219,6 +416,10 @@ async function main() {
       heroSubtitleArg = arg.slice('--hero-subtitle='.length);
     } else if (arg.startsWith('--hero-image=')) {
       heroImageArg = arg.slice('--hero-image='.length);
+    } else if (arg.startsWith('--thumbnail-suffix=')) {
+      thumbnailSuffixArg = arg.slice('--thumbnail-suffix='.length);
+    } else if (arg.startsWith('--full-suffix=')) {
+      fullSuffixArg = arg.slice('--full-suffix='.length);
     } else if (!outputArg) {
       outputArg = arg;
     }
@@ -230,17 +431,32 @@ async function main() {
 
   const normalizeOption = (value) =>
     typeof value === 'string' ? value.trim() : '';
+  const normalizeOptional = (value) =>
+    typeof value === 'string' ? value.trim() : undefined;
 
   const downloadArchive =
     normalizeOption(archiveArg) || normalizeOption(process.env.GALLERY_ARCHIVE);
   const heroEyebrow =
-    normalizeOption(heroEyebrowArg) || normalizeOption(process.env.GALLERY_HERO_EYEBROW);
+    normalizeOption(heroEyebrowArg) ||
+    normalizeOption(process.env.GALLERY_HERO_EYEBROW);
   const heroTitle =
-    normalizeOption(heroTitleArg) || normalizeOption(process.env.GALLERY_HERO_TITLE);
+    normalizeOption(heroTitleArg) ||
+    normalizeOption(process.env.GALLERY_HERO_TITLE);
   const heroSubtitle =
-    normalizeOption(heroSubtitleArg) || normalizeOption(process.env.GALLERY_HERO_SUBTITLE);
-  const heroImage =
-    normalizeOption(heroImageArg) || normalizeOption(process.env.GALLERY_HERO_IMAGE);
+    normalizeOption(heroSubtitleArg) ||
+    normalizeOption(process.env.GALLERY_HERO_SUBTITLE);
+  const heroImageRaw =
+    normalizeOption(heroImageArg) ||
+    normalizeOption(process.env.GALLERY_HERO_IMAGE);
+  let heroImage = normalizeAssetPath(heroImageRaw);
+  const thumbnailSuffix =
+    normalizeOptional(thumbnailSuffixArg) ??
+    normalizeOptional(process.env.GALLERY_THUMBNAIL_SUFFIX) ??
+    DEFAULT_THUMBNAIL_SUFFIX;
+  const fullSuffix =
+    normalizeOptional(fullSuffixArg) ??
+    normalizeOptional(process.env.GALLERY_FULL_SUFFIX) ??
+    DEFAULT_FULL_SUFFIX;
 
   try {
     await fs.access(PHOTOS_DIR);
@@ -249,27 +465,40 @@ async function main() {
     process.exit(1);
   }
 
-  const folderNames = (await readDirectories(PHOTOS_DIR)).sort((a, b) =>
-    a.localeCompare(b)
-  );
-
-  if (folderNames.length === 0) {
-    console.warn("⚠ No folders found in assets/photos. Generated manifest will be empty.");
+  if (!heroImage) {
+    heroImage = await findDefaultHeroImage();
   }
 
-  const folders = [];
-  for (const folderName of folderNames) {
-    const folder = await buildFolder(folderName);
-    if (folder.photos.length === 0) {
-      console.warn(`⚠ Folder "${folderName}" contains no image files and was skipped.`);
-      continue;
-    }
-    folders.push(folder);
+  const imageFiles = await collectImageFiles(PHOTOS_DIR);
+  if (!imageFiles.length) {
+    console.warn(
+      `⚠ No image files found in ${PHOTOS_DIR}. Generated manifest will be empty.`
+    );
+  }
+
+  const heroImageRelativePath =
+    heroImage && !isProbablyUrl(heroImage) ? heroImage : '';
+
+  const filteredImageFiles = heroImageRelativePath
+    ? imageFiles.filter((file) => file.relativePath !== heroImageRelativePath)
+    : imageFiles;
+
+  let photoCounter = 1;
+  const nextPhotoId = () => `photo-${String(photoCounter++).padStart(3, '0')}`;
+
+  const photos = await buildPhotosFromFiles(filteredImageFiles, {
+    thumbnailSuffix,
+    fullSuffix,
+    nextPhotoId,
+  });
+
+  if (photos.length === 0) {
+    console.warn('⚠ No photos detected. Generated manifest will be empty.');
   }
 
   const manifest = {
-    $schema: "./gallery.schema.json",
-    folders,
+    $schema: './gallery.schema.json',
+    photos,
   };
 
   if (downloadArchive) {
@@ -288,12 +517,16 @@ async function main() {
     manifest.heroImage = heroImage;
   }
 
-  await fs.writeFile(outputPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  await fs.writeFile(
+    outputPath,
+    JSON.stringify(manifest, null, 2) + '\n',
+    'utf8'
+  );
   console.log(`✓ Gallery manifest written to ${outputPath}`);
 }
 
 main().catch((error) => {
-  console.error("✗ Failed to generate gallery manifest");
+  console.error('✗ Failed to generate gallery manifest');
   console.error(error);
   process.exit(1);
 });

@@ -6,7 +6,10 @@
     <title>Wedding Photo Gallery</title>
     <link rel="stylesheet" href="/styles.css" />
     <script>
-      window.API_BASE_URL = 'https://xabernaq.de/wedding';
+      window.API_BASE_URL =
+        window.location.hostname === 'localhost'
+          ? './assets/'
+          : 'https://xabernaq.de/wedding';
     </script>
   </head>
   <body>
@@ -44,7 +47,7 @@
           id="detail-view"
           class="detail-view hidden"
           aria-hidden="true"
-          aria-labelledby="detail-title"
+          aria-label="Photo viewer"
           tabindex="-1"
         >
           <button
@@ -87,10 +90,6 @@
 
           <figure class="detail-view__figure">
             <img id="detail-image" class="detail-view__image" alt="" />
-            <figcaption
-              id="detail-title"
-              class="detail-view__caption"
-            ></figcaption>
             <p id="detail-count" class="detail-view__count"></p>
           </figure>
 
